@@ -421,6 +421,7 @@ endfunc
 "
 "=============================================================================
 let g:HEX_active=0	" initialize - set hex mode off
+let g:HEX_linelen=16 " initialize - set how bytes show in line
 "=============================================================================
 " Found the xxd functions in menu.vim
 " Use a function to do the conversion, so that it also works 
@@ -441,7 +442,7 @@ function s:HEX_XxdConv()
     %!mc vim:xxd
   else
     call s:HEX_XxdFind()
-    exe '%!"' . g:xxdprogram . '"' 
+    exe '%!"' . g:xxdprogram . '" -c '.g:HEX_linelen
   endif
   if getline(1) =~ "^0000000:"		" only if it worked
     set ft=xxd
@@ -615,10 +616,10 @@ function s:HEX_ToOffset(goto)
   " declare funtion local
   let intgoto = a:goto
   " Calculate the line number of the new offset.
-  let newline = intgoto / 16 + 1
+  let newline = intgoto / g:HEX_linelen + 1
   " Calculate the column number within that new line. I could do it in one line,
   " but this is less obfuscated.
-  let newcol = intgoto % 16
+  let newcol = intgoto % g:HEX_linelen
   let newcol = newcol * 5 / 2
   let newcol = newcol + 10
   " Go to that new line.
@@ -666,7 +667,7 @@ function s:HEX_GetOffset()
     let curcol = curcol * 2 / 5
   endif
   " There are 16 bytes in each line plus the current column calculation.
-  let offset = (curline * 16) + curcol
+  let offset = (curline * g:HEX_linelen) + curcol
   " Add the midword adjustment for being in the middle of a hexword if needed.
   let offset = offset + midwrd
   "if offset < 0
