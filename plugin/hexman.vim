@@ -347,7 +347,7 @@ function s:HEX_Goto()
   let intgoto=s:HEX_Hex2Nr(hexgoto)
 
   call s:HEX_ToOffset(intgoto)
-  " echo " hexfrom: [" . toupper(hexoffset) . "]" . " intfrom: [" . offset ."] hexto: [" . hexgoto ."] intto: [" . intgoto ."]"
+  echo " hexfrom: [" . toupper(hexoffset) . "]" . " intfrom: [" . offset ."] hexto: [" . hexgoto ."] intto: [" . intgoto ."]"
   return ""
 endfun 
 "
@@ -623,13 +623,13 @@ function s:HEX_ToOffset(goto)
   let newline = intgoto / g:HEX_linelen + 1
   " Calculate the column number within that new line. I could do it in one line,
   " but this is less obfuscated.
-  let newcol = intgoto % g:HEX_linelen
-  let newcol = newcol * groupwidth / 2
-  let newcol = newcol + s:linestart
+  let newcol1 = intgoto % g:HEX_linelen
+  let newcol2 = (newcol1 / g:HEX_opg)* groupwidth + (newcol1 % g:HEX_opg) * 2
+  let newcol3 = newcol2 + s:linestart
   " Go to that new line.
   exec ":" . newline
   " Go to that new column.
-  exec "norm " . newcol . "|"
+  exec "norm " . newcol3 . "|"
   return ""
 endfun
 "
@@ -646,12 +646,12 @@ function s:HEX_GetOffset()
   " declare group width. it include right space
   let groupwidth = g:HEX_opg * 2 + 1
   let groupcount = g:HEX_linelen/g:HEX_opg
-  let right_max = groupcount * groupwidth + s:linestart
+  let hex_end = groupcount * groupwidth + s:linestart
   let remain = g:HEX_linelen % g:HEX_opg
   if remain > 0
-      let right_max = right_max + remain * 2 + 1 " add remain octets and right space
+      let hex_end = hex_end + remain * 2 + 1 " add remain octets and right space
   endif
-  let lastpos = right_max - 3 " skip to last octet start position
+  let lastpos = hex_end - 3 " skip to last octet start position
   " If the curcol is greater than 48...
   if curcol > lastpos
       " Make it 47.  We don't care about the text to the right of the hex.
@@ -754,39 +754,62 @@ function s:HEX_ShowOffsets()
 "
   " Get the current column number.
   let curcol  = col(".")
+  let groupwidth = g:HEX_opg * 2 + 1
+  let groupcount = g:HEX_linelen/g:HEX_opg
+  let hex_end = groupcount * groupwidth + s:linestart
+  let remain = g:HEX_linelen % g:HEX_opg
+  if remain > 0
+      let hex_end = hex_end + remain * 2 + 1 " add remain octets and right space
+  endif
+  let lastpos = hex_end - 3 " lastpos at last byte start
+
   "
-  if curcol > 50
+  if curcol > hex_end
 	" cursor is in ascii part
-	let newcol = 7
-	let colpos = 51
-	let coladd = 3
-  	while colpos <= curcol
+	"let newcol = 7
+    let ascii_start = hex_end + 1
+    let newcol = s:linestart
+	let colpos = ascii_start " ascii part begin position
+	let coladd = 2
+  	while colpos < curcol
+            let ascii_offset = colpos - ascii_start
       		let colpos = colpos + 1
-      		let newcol = newcol + coladd
-      		if coladd > 2
-			let coladd = 2
-      		else
-			let coladd = 3
-      		endif
+            let ascii_remain = ascii_offset % g:HEX_opg 
+            if ascii_remain == (g:HEX_opg - 1)
+              let newcol = newcol + 3
+            else
+              let newcol = newcol + 2
+            endif
+      		"let newcol = newcol + coladd
+              "if coladd > 2
+			"let coladd = 2
+              "else
+			"let coladd = 3
+      		"endif
   	endwhile
   else
 	" cursor is in  hex part
   	" init newcol first ascii position is 51
   	" calculate related ascii position (right part from xxd)
-   	let newcol = 51
+   	let newcol = hex_end + 1
   	" first hex part valid till position 12
-  	let colpos = 12
+      "let colpos = 12
+  	let colpos = s:linestart
+    let pos = curcol - colpos
+    let offset = (pos / groupwidth) * g:HEX_opg
+    let offset = offset + (pos % groupwidth) / 2
+    let newcol = newcol + offset
   	" Add 3 than 2 than 3 than 2 and so on
-  	let coladd = 3
-  	while colpos <= curcol
-      		let colpos = colpos + coladd
-      		let newcol = newcol + 1
-      		if coladd > 2
-			let coladd = 2
-      		else
-			let coladd = 3
-      		endif
-  	endwhile
+      "let coladd = 3
+  	"while colpos <= curcol
+              "let colpos = colpos + coladd
+              "let newcol = newcol + 1
+              "if coladd > 2
+			"let coladd = 2
+              "else
+			"let coladd = 3
+              "endif
+  	"endwhile
   endif
   " Show offsets
   let s:offset = s:HEX_GetOffset()         	" Next/Prev Hex Position
@@ -795,17 +818,30 @@ function s:HEX_ShowOffsets()
   " set help off for default
 
   " call s:HEX_Help(hexoff, offset)
-  let groupwidth = g:HEX_opg * 2 + 1
-  let groupcount = g:HEX_linelen/g:HEX_opg
-  let right_max = groupcount * groupwidth + s:linestart
-  let remain = g:HEX_linelen % g:HEX_opg
-  if remain > 0
-      let right_max = right_max + remain * 2 + 1 " add remain octets and right space
-  endif
-  let lastpos = right_max - 3 " lastpos at last byte start
-  echo "Offset Hex:[" . s:hexoff ."] Dec:[" . s:offset ."]  Press ? for help" . " gw:".groupwidth." gc:".groupcount." max:".right_max." rem:".remain." lastpos:".lastpos
+    echo "Offset Hex:[" . s:hexoff ."] Dec:[" . s:offset ."]  Press ? for help" . " gw:".groupwidth." gc:".groupcount." hexend:".hex_end." rem:".remain." lastpos:".lastpos." newcol:".newcol
   return newcol
 "
+endfun
+
+"
+" =======================================================================================
+" Check curcol in ascii 
+" =======================================================================================
+function s:HEX_in_ascii()
+  let curcol  = col(".")
+  let groupwidth = g:HEX_opg * 2 + 1
+  let groupcount = g:HEX_linelen/g:HEX_opg
+  let hex_end = groupcount * groupwidth + s:linestart
+  let remain = g:HEX_linelen % g:HEX_opg
+  if remain > 0
+      let hex_end = hex_end + remain * 2 + 1 " add remain octets and right space
+  endif
+
+  let result = 'hex'
+  if curcol > hex_end
+    let result = 'ascii'
+  endif
+  return result
 endfun
 "
 " =======================================================================================
@@ -838,7 +874,14 @@ function s:HEX_Status()
     let s:fff = s:sff + 1
 
     " 29Mrz06 FR vim 7.0c don't accept /\%<colpos>v
-    :au! Cursorhold * exe 'match AsciiPos /\%<' . (s:HEX_ShowOffsets() + 1) . 'v.\%>' . s:HEX_ShowOffsets() . 'v/'
+    let cursor_begin = s:HEX_ShowOffsets()
+    let cursor_end = cursor_begin + 1 " in hex, then need highlight 1 ascii char.
+    if s:HEX_in_ascii() == 'ascii'
+      " in ascii, then cursor show on HEX. It need highlight 2 hex char. 
+      :au! Cursorhold * exe 'match AsciiPos /\%<' . (s:HEX_ShowOffsets() + 2) . 'v.\%>' . s:HEX_ShowOffsets() . 'v/'
+    else
+      :au! Cursorhold * exe 'match AsciiPos /\%<' . (s:HEX_ShowOffsets() + 1) . 'v.\%>' . s:HEX_ShowOffsets() . 'v/'
+    endif 
     :set ut=100 
     let g:hex_showstatus = 1
   endif
