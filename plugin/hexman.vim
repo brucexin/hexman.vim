@@ -827,7 +827,11 @@ endfun
 " =======================================================================================
 " Check curcol in ascii 
 " =======================================================================================
-function s:HEX_in_ascii()
+function s:CursorShowBegin()
+  return s:HEX_ShowOffsets()
+endfun
+
+function s:CursorShowEnd()
   let curcol  = col(".")
   let groupwidth = g:HEX_opg * 2 + 1
   let groupcount = g:HEX_linelen/g:HEX_opg
@@ -839,10 +843,12 @@ function s:HEX_in_ascii()
 
   let result = 'hex'
   if curcol > hex_end
-    let result = 'ascii'
+    return s:HEX_ShowOffsets() + 2
+  else
+    return s:HEX_ShowOffsets() + 1
   endif
-  return result
 endfun
+
 "
 " =======================================================================================
 " Show / Stop Overwriting Statusline with Offset-Info
@@ -870,18 +876,12 @@ function s:HEX_Status()
   else
     " switch on 
     :highlight AsciiPos guibg=Yellow cterm=reverse term=reverse
-    let s:sff = s:HEX_ShowOffsets()
-    let s:fff = s:sff + 1
+    "let s:sff = s:HEX_ShowOffsets()
+    "let s:fff = s:sff + 1
 
     " 29Mrz06 FR vim 7.0c don't accept /\%<colpos>v
-    let cursor_begin = s:HEX_ShowOffsets()
-    let cursor_end = cursor_begin + 1 " in hex, then need highlight 1 ascii char.
-    if s:HEX_in_ascii() == 'ascii'
-      " in ascii, then cursor show on HEX. It need highlight 2 hex char. 
-      :au! Cursorhold * exe 'match AsciiPos /\%<' . (s:HEX_ShowOffsets() + 2) . 'v.\%>' . s:HEX_ShowOffsets() . 'v/'
-    else
-      :au! Cursorhold * exe 'match AsciiPos /\%<' . (s:HEX_ShowOffsets() + 1) . 'v.\%>' . s:HEX_ShowOffsets() . 'v/'
-    endif 
+    ":au! Cursorhold * exe 'match AsciiPos /\%<' . (s:HEX_ShowOffsets() + 2) . 'v.\%>' . s:HEX_ShowOffsets() . 'v/'
+    :au! Cursorhold * exe 'match AsciiPos /\%<' . s:CursorShowEnd() . 'v.\%>' . s:CursorShowBegin() . 'v/'
     :set ut=100 
     let g:hex_showstatus = 1
   endif
