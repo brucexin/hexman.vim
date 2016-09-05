@@ -421,8 +421,12 @@ endfunc
 "
 "=============================================================================
 let g:HEX_active=0	" initialize - set hex mode off
-let g:HEX_linelen=20 " initialize - set how bytes show in line
-let g:HEX_opg=3 " initialize - octets per group. Here is opg=2 exam: AABB
+if !exists("g:hex_linelen")
+  let g:hex_linelen=20 " initialize - set how bytes show in line
+endif
+if !exists("g:hex_opg")
+  let g:hex_opg=3 " initialize - octets per group. Here is opg=2 exam: AABB
+endif
 let s:linestart=10 " hex line start position, skip left lineno and ': '. like: 00000000: AA
 "=============================================================================
 " Found the xxd functions in menu.vim
@@ -444,7 +448,7 @@ function s:HEX_XxdConv()
     %!mc vim:xxd
   else
     call s:HEX_XxdFind()
-    exe '%!"' . g:xxdprogram . '" -c '.g:HEX_linelen.' -g '.g:HEX_opg
+    exe '%!"' . g:xxdprogram . '" -c '.g:hex_linelen.' -g '.g:hex_opg
   endif
   if getline(1) =~ "^0000000:"		" only if it worked
     set ft=xxd
@@ -618,13 +622,13 @@ function s:HEX_ToOffset(goto)
   " declare funtion local
   let intgoto = a:goto
   " declare group width. it include right space
-  let groupwidth = g:HEX_opg * 2 + 1
+  let groupwidth = g:hex_opg * 2 + 1
   " Calculate the line number of the new offset.
-  let newline = intgoto / g:HEX_linelen + 1
+  let newline = intgoto / g:hex_linelen + 1
   " Calculate the column number within that new line. I could do it in one line,
   " but this is less obfuscated.
-  let newcol1 = intgoto % g:HEX_linelen
-  let newcol2 = (newcol1 / g:HEX_opg)* groupwidth + (newcol1 % g:HEX_opg) * 2
+  let newcol1 = intgoto % g:hex_linelen
+  let newcol2 = (newcol1 / g:hex_opg)* groupwidth + (newcol1 % g:hex_opg) * 2
   let newcol3 = newcol2 + s:linestart
   " Go to that new line.
   exec ":" . newline
@@ -644,10 +648,10 @@ function s:HEX_GetOffset()
   " Get the current column number.
   let curcol  = col(".")
   " declare group width. it include right space
-  let groupwidth = g:HEX_opg * 2 + 1
-  let groupcount = g:HEX_linelen/g:HEX_opg
+  let groupwidth = g:hex_opg * 2 + 1
+  let groupcount = g:hex_linelen/g:hex_opg
   let hex_end = groupcount * groupwidth + s:linestart
-  let remain = g:HEX_linelen % g:HEX_opg
+  let remain = g:hex_linelen % g:hex_opg
   if remain > 0
       let hex_end = hex_end + remain * 2 + 1 " add remain octets and right space
   endif
@@ -678,10 +682,10 @@ function s:HEX_GetOffset()
     " Divide the column by 5 and then multiply by two and it will give you the
     " proper integer column number for the first byte in each 2 byte group.
     "let curcol = curcol * 2 / 5
-    let curcol = curcol * g:HEX_opg / groupwidth
+    let curcol = curcol * g:hex_opg / groupwidth
   endif
   " There are 16 bytes in each line plus the current column calculation.
-  let offset = (curline * g:HEX_linelen) + curcol
+  let offset = (curline * g:hex_linelen) + curcol
   " Add the midword adjustment for being in the middle of a hexword if needed.
   let offset = offset + midwrd
   "if offset < 0
@@ -754,10 +758,10 @@ function s:HEX_ShowOffsets()
 "
   " Get the current column number.
   let curcol  = col(".")
-  let groupwidth = g:HEX_opg * 2 + 1
-  let groupcount = g:HEX_linelen/g:HEX_opg
+  let groupwidth = g:hex_opg * 2 + 1
+  let groupcount = g:hex_linelen/g:hex_opg
   let hex_end = groupcount * groupwidth + s:linestart
-  let remain = g:HEX_linelen % g:HEX_opg
+  let remain = g:hex_linelen % g:hex_opg
   if remain > 0
       let hex_end = hex_end + remain * 2 + 1 " add remain octets and right space
   endif
@@ -774,8 +778,8 @@ function s:HEX_ShowOffsets()
   	while colpos < curcol
             let ascii_offset = colpos - ascii_start
       		let colpos = colpos + 1
-            let ascii_remain = ascii_offset % g:HEX_opg 
-            if ascii_remain == (g:HEX_opg - 1)
+            let ascii_remain = ascii_offset % g:hex_opg 
+            if ascii_remain == (g:hex_opg - 1)
               let newcol = newcol + 3
             else
               let newcol = newcol + 2
@@ -795,10 +799,12 @@ function s:HEX_ShowOffsets()
   	" first hex part valid till position 12
       "let colpos = 12
   	let colpos = s:linestart
-    let pos = curcol - colpos
-    let offset = (pos / groupwidth) * g:HEX_opg
-    let offset = offset + (pos % groupwidth) / 2
-    let newcol = newcol + offset
+    if curcol > colpos
+      let pos = curcol - colpos
+      let offset = (pos / groupwidth) * g:hex_opg
+      let offset = offset + (pos % groupwidth) / 2
+      let newcol = newcol + offset
+    endif
   	" Add 3 than 2 than 3 than 2 and so on
       "let coladd = 3
   	"while colpos <= curcol
@@ -833,10 +839,10 @@ endfun
 
 function s:CursorShowEnd()
   let curcol  = col(".")
-  let groupwidth = g:HEX_opg * 2 + 1
-  let groupcount = g:HEX_linelen/g:HEX_opg
+  let groupwidth = g:hex_opg * 2 + 1
+  let groupcount = g:hex_linelen/g:hex_opg
   let hex_end = groupcount * groupwidth + s:linestart
-  let remain = g:HEX_linelen % g:HEX_opg
+  let remain = g:hex_linelen % g:hex_opg
   if remain > 0
       let hex_end = hex_end + remain * 2 + 1 " add remain octets and right space
   endif
